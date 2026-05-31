@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import fetch from "node-fetch";
 
 dotenv.config();
 
@@ -19,26 +20,21 @@ app.post("/api/chat", async (req, res) => {
 
     const userMessage = req.body.message;
 
-    console.log("USER MESSAGE:", userMessage);
-
     const response = await fetch(
-      "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=" +
-      process.env.GEMINI_API_KEY,
+      "https://api.groq.com/openai/v1/chat/completions",
       {
         method: "POST",
-
         headers: {
+          "Authorization":
+            `Bearer ${process.env.GROQ_API_KEY}`,
           "Content-Type": "application/json"
         },
-
         body: JSON.stringify({
-          contents: [
+          model: "llama-3.1-8b-instant",
+          messages: [
             {
-              parts: [
-                {
-                  text: userMessage
-                }
-              ]
+              role: "user",
+              content: userMessage
             }
           ]
         })
@@ -47,30 +43,20 @@ app.post("/api/chat", async (req, res) => {
 
     const data = await response.json();
 
-    console.log("FULL GEMINI RESPONSE:");
-    console.log(JSON.stringify(data, null, 2));
+    console.log(data);
 
-    // SAFE RESPONSE EXTRACTION
     const reply =
-      data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      data?.choices?.[0]?.message?.content ||
+      "No response from AI";
 
-    if(reply){
-      res.json({ reply });
-    } else {
+    res.json({ reply });
 
-      res.json({
-        reply: "Gemini returned empty response."
-      });
+  } catch (error) {
 
-    }
-
-  } catch(error){
-
-    console.log("SERVER ERROR:");
-    console.log(error);
+    console.error(error);
 
     res.status(500).json({
-      reply: "Server crashed."
+      reply: "Server error"
     });
   }
 });
@@ -78,5 +64,5 @@ app.post("/api/chat", async (req, res) => {
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-  console.log("Server running on port " + PORT);
+  console.log(`Server running on port ${PORT}`);
 });
